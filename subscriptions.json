@@ -3,19 +3,19 @@
     {
       "url": "https://garymarcus.substack.com/",
       "name": "Gary Marcus",
-      "premium": false,
+      "premium": true,
       "enabled": true
     },
     {
       "url": "https://www.latent.space/",
       "name": "Latent Space",
-      "premium": false,
+      "premium": true,
       "enabled": true
     },
     {
       "url": "https://msukhareva.substack.com/",
       "name": "Maria Sukhareva",
-      "premium": false,
+      "premium": true,
       "enabled": true
     },
     {
@@ -27,12 +27,6 @@
     {
       "url": "https://www.oneusefulthing.org/",
       "name": "One Useful Thing",
-      "premium": false,
-      "enabled": true
-    },
-    {
-      "url": "https://www.interconnects.ai/",
-      "name": "Interconnects",
       "premium": true,
       "enabled": true
     }

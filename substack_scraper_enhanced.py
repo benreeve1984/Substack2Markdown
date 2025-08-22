@@ -22,7 +22,7 @@ from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.chrome.service import Service
 from config import EMAIL, PASSWORD
 
-USE_PREMIUM: bool = False
+USE_PREMIUM: bool = True
 BASE_SUBSTACK_URL: str = "https://www.thefitzwilliam.com/"
 BASE_MD_DIR: str = "substack_md_files"
 BASE_HTML_DIR: str = "substack_html_pages"
