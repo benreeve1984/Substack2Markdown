@@ -1,0 +1,39 @@
+{
+  "subscriptions": [
+    {
+      "url": "https://garymarcus.substack.com/",
+      "name": "Gary Marcus",
+      "premium": false,
+      "enabled": true
+    },
+    {
+      "url": "https://www.latent.space/",
+      "name": "Latent Space",
+      "premium": false,
+      "enabled": true
+    },
+    {
+      "url": "https://msukhareva.substack.com/",
+      "name": "Maria Sukhareva",
+      "premium": false,
+      "enabled": true
+    },
+    {
+      "url": "https://simonw.substack.com/",
+      "name": "Simon Willison",
+      "premium": false,
+      "enabled": true
+    },
+    {
+      "url": "https://www.oneusefulthing.org/",
+      "name": "One Useful Thing",
+      "premium": false,
+      "enabled": true
+    }
+  ],
+  "settings": {
+    "default_start_date": null,
+    "auto_detect_premium": true,
+    "delay_between_substacks": 10
+  }
+}

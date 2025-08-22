@@ -1,5 +1,6 @@
 # Ignore Python-related files
 config.py
+.env
 setup.py
 **/__pycache__/
 
