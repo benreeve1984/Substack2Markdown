@@ -29,6 +29,12 @@
       "name": "One Useful Thing",
       "premium": false,
       "enabled": true
+    },
+    {
+      "url": "https://www.interconnects.ai/",
+      "name": "Interconnects",
+      "premium": true,
+      "enabled": true
     }
   ],
   "settings": {
