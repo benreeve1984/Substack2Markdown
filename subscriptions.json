@@ -3,7 +3,7 @@
     {
       "url": "https://garymarcus.substack.com/",
       "name": "Gary Marcus",
-      "premium": true,
+      "premium": false,
       "enabled": true
     },
     {
@@ -27,6 +27,12 @@
     {
       "url": "https://www.oneusefulthing.org/",
       "name": "One Useful Thing",
+      "premium": true,
+      "enabled": true
+    },
+    {
+      "url": "https://www.interconnects.ai/",
+      "name": "Interconnects",
       "premium": true,
       "enabled": true
     }
