@@ -17,9 +17,9 @@ from xml.etree import ElementTree as ET
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
-from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from config import EMAIL, PASSWORD
 
 USE_PREMIUM: bool = True
@@ -499,28 +499,50 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             start_date: Optional[str] = None,
             update_mode: bool = False,
             headless: bool = False,
-            edge_path: str = '',
-            edge_driver_path: str = '',
+            chrome_path: str = '',
+            chrome_driver_path: str = '',
             user_agent: str = ''
     ) -> None:
         super().__init__(base_substack_url, md_save_dir, html_save_dir, start_date, update_mode)
 
-        options = EdgeOptions()
+        options = ChromeOptions()
         if headless:
             options.add_argument("--headless")
-        if edge_path:
-            options.binary_location = edge_path
+        if chrome_path:
+            options.binary_location = chrome_path
         if user_agent:
             options.add_argument(f'user-agent={user_agent}')
         else:
             options.add_argument(f'user-agent={self.get_random_user_agent()}')
+        
+        # Add additional options for better compatibility
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
 
-        if edge_driver_path:
-            service = Service(executable_path=edge_driver_path)
+        if chrome_driver_path:
+            service = Service(executable_path=chrome_driver_path)
         else:
-            service = Service(EdgeChromiumDriverManager().install())
+            # Install and get the correct driver path
+            driver_path = ChromeDriverManager().install()
+            # On ARM Macs, the actual executable might be in a subdirectory
+            import os
+            import platform
+            if platform.system() == "Darwin" and platform.machine() == "arm64":
+                # Check if we got the wrong file
+                if driver_path.endswith("THIRD_PARTY_NOTICES.chromedriver"):
+                    # Get the directory and find the actual chromedriver
+                    driver_dir = os.path.dirname(driver_path)
+                    actual_driver = os.path.join(driver_dir, "chromedriver")
+                    if os.path.exists(actual_driver):
+                        driver_path = actual_driver
+                        # Make sure it's executable
+                        os.chmod(driver_path, 0o755)
+            service = Service(driver_path)
 
-        self.driver = webdriver.Edge(service=service, options=options)
+        self.driver = webdriver.Chrome(service=service, options=options)
         self.login()
 
     def login(self) -> None:
@@ -610,16 +632,16 @@ def parse_args() -> argparse.Namespace:
         help="Include --headless in command to run browser in headless mode when using the Premium Substack Scraper.",
     )
     parser.add_argument(
-        "--edge-path",
+        "--chrome-path",
         type=str,
         default="",
-        help='Optional: The path to the Edge browser executable (i.e. "path_to_msedge.exe").',
+        help='Optional: The path to the Chrome browser executable.',
     )
     parser.add_argument(
-        "--edge-driver-path",
+        "--chrome-driver-path",
         type=str,
         default="",
-        help='Optional: The path to the Edge WebDriver executable (i.e. "path_to_msedgedriver.exe").',
+        help='Optional: The path to the Chrome WebDriver executable.',
     )
     parser.add_argument(
         "--user-agent",
@@ -668,8 +690,8 @@ def main():
                 start_date=start_date,
                 update_mode=update_mode,
                 headless=args.headless,
-                edge_path=args.edge_path,
-                edge_driver_path=args.edge_driver_path,
+                chrome_path=args.chrome_path,
+                chrome_driver_path=args.chrome_driver_path,
                 user_agent=args.user_agent
             )
         else:
@@ -690,8 +712,8 @@ def main():
                 html_save_dir=args.html_directory,
                 start_date=start_date,
                 update_mode=update_mode,
-                edge_path=args.edge_path,
-                edge_driver_path=args.edge_driver_path
+                chrome_path=args.chrome_path,
+                chrome_driver_path=args.chrome_driver_path
             )
         else:
             scraper = SubstackScraper(

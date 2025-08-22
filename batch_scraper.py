@@ -137,7 +137,7 @@ def toggle_subscription(url: str) -> None:
 
 
 def scrape_all(mode: str = "update", start_date: Optional[str] = None, 
-               headless: bool = True, dry_run: bool = False) -> None:
+               headless: bool = True, dry_run: bool = False, premium_only: bool = False) -> None:
     """
     Scrape all enabled subscriptions sequentially.
     
@@ -149,6 +149,11 @@ def scrape_all(mode: str = "update", start_date: Optional[str] = None,
     """
     data = load_subscriptions()
     enabled_subs = [s for s in data["subscriptions"] if s.get("enabled", True)]
+    
+    # Filter for premium only if requested
+    if premium_only:
+        enabled_subs = [s for s in enabled_subs if s.get("premium", False)]
+        print("Note: Scraping premium subscriptions only")
     
     if not enabled_subs:
         print("No enabled subscriptions to scrape.")
@@ -315,6 +320,7 @@ Examples:
     scrape_parser.add_argument('--start-date', help='Start date for initial scrape (YYYY-MM-DD)')
     scrape_parser.add_argument('--show-browser', action='store_true', help='Show browser window')
     scrape_parser.add_argument('--dry-run', action='store_true', help='Show what would be scraped without doing it')
+    scrape_parser.add_argument('--premium-only', action='store_true', help='Only scrape premium subscriptions')
     
     # List command
     list_parser = subparsers.add_parser('list', help='List all subscriptions')
@@ -350,7 +356,8 @@ Examples:
             mode=mode,
             start_date=args.start_date,
             headless=not args.show_browser,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
+            premium_only=args.premium_only
         )
     
     elif args.command == 'list':

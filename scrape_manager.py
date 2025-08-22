@@ -60,7 +60,9 @@ def initial_scrape(url: str, start_date: Optional[str] = None, premium: bool = T
             html_save_dir=BASE_HTML_DIR,
             start_date=start_date,
             update_mode=False,
-            headless=headless
+            headless=headless,
+            chrome_path='',
+            chrome_driver_path=''
         )
     else:
         scraper = SubstackScraper(
@@ -101,7 +103,9 @@ def update_scrape(url: str, premium: bool = True, headless: bool = True):
             html_save_dir=BASE_HTML_DIR,
             start_date=None,
             update_mode=True,
-            headless=headless
+            headless=headless,
+            chrome_path='',
+            chrome_driver_path=''
         )
     else:
         scraper = SubstackScraper(
