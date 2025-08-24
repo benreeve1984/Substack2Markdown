@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import pickle
 import random
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
@@ -501,9 +502,15 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             headless: bool = False,
             chrome_path: str = '',
             chrome_driver_path: str = '',
-            user_agent: str = ''
+            user_agent: str = '',
+            use_cookies: bool = True,
+            cookies_file: str = 'substack_cookies.pkl',
+            user_data_dir: str = None
     ) -> None:
         super().__init__(base_substack_url, md_save_dir, html_save_dir, start_date, update_mode)
+        
+        self.use_cookies = use_cookies
+        self.cookies_file = cookies_file
 
         options = ChromeOptions()
         if headless:
@@ -514,6 +521,11 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             options.add_argument(f'user-agent={user_agent}')
         else:
             options.add_argument(f'user-agent={self.get_random_user_agent()}')
+        
+        # Use existing Chrome profile if specified
+        if user_data_dir:
+            options.add_argument(f"--user-data-dir={user_data_dir}")
+            print(f"Using existing Chrome profile from: {user_data_dir}")
         
         # Add additional options for better compatibility
         options.add_argument("--no-sandbox")
@@ -543,8 +555,102 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             service = Service(driver_path)
 
         self.driver = webdriver.Chrome(service=service, options=options)
-        self.login()
+        
+        # Try to load cookies first if using cookie auth
+        if self.use_cookies and not user_data_dir:
+            if self.load_cookies():
+                print("Successfully loaded cookies from previous session")
+                # Verify the session is still valid
+                if not self.verify_session():
+                    print("Session expired, logging in again...")
+                    self.login()
+                    self.save_cookies()
+            else:
+                print("No saved cookies found, performing fresh login...")
+                self.login()
+                self.save_cookies()
+        elif not user_data_dir:
+            # Only login if not using existing Chrome profile
+            self.login()
+            if self.use_cookies:
+                self.save_cookies()
+        else:
+            # Using existing Chrome profile, verify session
+            if not self.verify_session():
+                print("Warning: Not logged in with the Chrome profile. Please login manually in Chrome first.")
 
+    def save_cookies(self) -> None:
+        """
+        Save cookies to a file for reuse in future sessions
+        """
+        try:
+            cookies = self.driver.get_cookies()
+            with open(self.cookies_file, 'wb') as f:
+                pickle.dump(cookies, f)
+            print(f"Cookies saved to {self.cookies_file}")
+        except Exception as e:
+            print(f"Error saving cookies: {e}")
+    
+    def load_cookies(self) -> bool:
+        """
+        Load cookies from file if it exists
+        Returns True if cookies were loaded successfully
+        """
+        if not os.path.exists(self.cookies_file):
+            return False
+        
+        try:
+            # First navigate to substack.com to set the domain
+            self.driver.get("https://substack.com")
+            sleep(2)
+            
+            # Load and add cookies
+            with open(self.cookies_file, 'rb') as f:
+                cookies = pickle.load(f)
+            
+            for cookie in cookies:
+                # Skip cookies that might cause issues
+                if 'expiry' in cookie:
+                    # Check if cookie is expired
+                    if cookie['expiry'] < datetime.now().timestamp():
+                        continue
+                try:
+                    self.driver.add_cookie(cookie)
+                except Exception as e:
+                    print(f"Warning: Could not add cookie {cookie.get('name', 'unknown')}: {e}")
+            
+            # Refresh to apply cookies
+            self.driver.refresh()
+            sleep(2)
+            return True
+        except Exception as e:
+            print(f"Error loading cookies: {e}")
+            return False
+    
+    def verify_session(self) -> bool:
+        """
+        Verify if the current session is logged in
+        """
+        try:
+            self.driver.get("https://substack.com/account")
+            sleep(3)
+            
+            # Check if we're redirected to login page or if account page loads
+            current_url = self.driver.current_url
+            if "sign-in" in current_url or "login" in current_url:
+                return False
+            
+            # Check for account-specific elements
+            try:
+                # Look for elements that only appear when logged in
+                self.driver.find_element(By.XPATH, "//button[contains(@aria-label, 'Account menu')]")
+                return True
+            except:
+                return False
+        except Exception as e:
+            print(f"Error verifying session: {e}")
+            return False
+    
     def login(self) -> None:
         """
         This method logs into Substack using Selenium
@@ -567,7 +673,9 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         # Find the submit button and click it.
         submit = self.driver.find_element(By.XPATH, "//*[@id=\"substack-login\"]/div[2]/div[2]/form/button")
         submit.click()
-        sleep(30)  # Wait for the page to load
+        
+        print("Waiting for login... (you have 2 minutes to complete captcha/2FA if needed)")
+        sleep(120)  # Wait up to 2 minutes for login, captcha, or 2FA
 
         if self.is_login_failed():
             raise Exception(
@@ -664,6 +772,22 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Update mode: only scrape new posts not already downloaded",
     )
+    parser.add_argument(
+        "--no-cookies",
+        action="store_true",
+        help="Disable cookie-based authentication (forces fresh login each time)",
+    )
+    parser.add_argument(
+        "--cookies-file",
+        type=str,
+        default="substack_cookies.pkl",
+        help="Path to the cookies file (default: substack_cookies.pkl)",
+    )
+    parser.add_argument(
+        "--user-data-dir",
+        type=str,
+        help="Path to Chrome user data directory to use existing browser profile (e.g., ~/Library/Application Support/Google/Chrome)",
+    )
 
     return parser.parse_args()
 
@@ -692,7 +816,10 @@ def main():
                 headless=args.headless,
                 chrome_path=args.chrome_path,
                 chrome_driver_path=args.chrome_driver_path,
-                user_agent=args.user_agent
+                user_agent=args.user_agent,
+                use_cookies=not args.no_cookies,
+                cookies_file=args.cookies_file,
+                user_data_dir=args.user_data_dir
             )
         else:
             scraper = SubstackScraper(
@@ -713,7 +840,10 @@ def main():
                 start_date=start_date,
                 update_mode=update_mode,
                 chrome_path=args.chrome_path,
-                chrome_driver_path=args.chrome_driver_path
+                chrome_driver_path=args.chrome_driver_path,
+                use_cookies=not args.no_cookies if hasattr(args, 'no_cookies') else True,
+                cookies_file=args.cookies_file if hasattr(args, 'cookies_file') else 'substack_cookies.pkl',
+                user_data_dir=args.user_data_dir if hasattr(args, 'user_data_dir') else None
             )
         else:
             scraper = SubstackScraper(
